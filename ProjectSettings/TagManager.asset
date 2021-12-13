@@ -4,10 +4,11 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - Ground
-  - Spike
   - Gem
   - Astraunut
+  - Ground
+  - Spike
+  - Portal
   layers:
   - Default
   - TransparentFX
@@ -42,9 +43,6 @@ TagManager:
   - 
   - 
   m_SortingLayers:
-  - name: BG
-    uniqueID: 2997731885
-    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0

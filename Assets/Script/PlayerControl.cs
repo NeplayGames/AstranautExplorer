@@ -1,62 +1,57 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Runtime.InteropServices;
 using UnityEngine;
 
 public class PlayerControl : MonoBehaviour
 {
     [SerializeField] float speed = 10f;
     [SerializeField] float jumpSpeed = 10f;
-
-
     Rigidbody2D rb;
-
-    float middleWidth;
-
     [SerializeField] ScoreCounter scoreCounter;
     Animator animator;
-
     bool canJump = true;
-
     bool playerDeath = false;
+    float horizontal;
+    //This is used to determine if the button is pressed
+    [SerializeField] GameObject controls;
 
+    [DllImport("__Internal")]
+    private static extern bool IsMobile();
     private void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
-        middleWidth = Screen.width / 2;
+        TouchControls.OnPress += TouchControls_OnPress;
+        if (!isMobile())
+        {
+            controls.SetActive(false);
+        }   
     }
-
-    Vector3 initialPoint;
+     bool isMobile()
+    {
+        #if !UNITY_EDITOR && UNITY_WEBGL
+             return IsMobile();
+        #endif
+        return false;
+    }
+    private void OnDestroy()
+    {
+        TouchControls.OnPress -= TouchControls_OnPress;
+    }
+    private void TouchControls_OnPress(int obj)
+    {
+         MovementSideways(obj);   
+    }
 
     private void Update()
     {
         if(playerDeath) return;
-        if (Input.GetMouseButtonDown(0))
+        if (!isMobile())
         {
-            initialPoint = Input.mousePosition;
-        }
-        if (Input.GetMouseButton(0))
-        {
-            
-            Vector2 touchPoint = Input.mousePosition;
-          
-                MovementSideways(touchPoint);
-            
-            if(touchPoint.y - initialPoint.y >= 100 && canJump)
-            {
-                canJump = false;
+            if (Input.GetKeyDown(KeyCode.Space))
                 Jump();
-
-            }
-
-        }
-        else
-        {
-            //  if(canJump)
-            //  rb.velocity = Vector2.zero;
-            ResetAnimation();
-        }
+            MovementSideways(Input.GetAxis("Horizontal"));
+        }  
+        rb.velocity = new Vector2(horizontal * speed, rb.velocity.y);
     }
 
     /// <summary>
@@ -65,22 +60,29 @@ public class PlayerControl : MonoBehaviour
     private void ResetAnimation()
     {
         animator.SetBool("Run", false);
-        animator.SetBool("Jump", false);
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void OnCollisionStay2D(Collision2D collision)
     {
+        if (playerDeath) return;
         Collider2D collider = collision.collider;
         if (collider.CompareTag("Ground"))
         {
             canJump = true;
-            initialPoint = Input.mousePosition;
-
         }
-
         if (collider.CompareTag("Spike"))
         {
             GameOver();
+        }
+      
+    }
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Portal"))
+        {
+            scoreCounter.GameWon();
+            animator.SetBool("Won", true);
+            playerDeath = true;
         }
     }
 
@@ -88,31 +90,23 @@ public class PlayerControl : MonoBehaviour
     {
         playerDeath = true;
         animator.SetBool("Dead", true);
-
         scoreCounter.GameOver("You cannot walk on spikes.");
     }
 
-    private void Jump()
+    public void Jump()
     {
-       rb.velocity = new Vector2(rb.velocity.x, jumpSpeed);
-        animator.SetBool("Jump", true);
-
+        if ( canJump)
+        {
+            canJump = false;
+            rb.velocity = new Vector2(rb.velocity.x, jumpSpeed);
+        }
     }
-
-    private void MovementSideways(Vector2 touchPoint)
+    private void MovementSideways(float horizontal)
     {
-        if (touchPoint.x > middleWidth)
-        {
-            rb.velocity = new Vector2(speed, rb.velocity.y);
-            transform.rotation = Quaternion.Euler(new Vector2(0, 180));
-
-        }
-        else
-        {
-            rb.velocity = new Vector2(-speed, rb.velocity.y);
-            transform.rotation = Quaternion.Euler(new Vector2(0, 0));
-        }
+        this.horizontal = horizontal;
+        if (horizontal == 0) { ResetAnimation(); return; }
+            transform.rotation = Quaternion.Euler(new Vector2(0,horizontal < 0 ? 0: 180));
         animator.SetBool("Run", true);
-        animator.SetBool("Jump", false);
+        return;
     }
 }
